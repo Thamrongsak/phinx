@@ -47,12 +47,16 @@ class Web
 
     }
 
-    public function run($env, $target, $command, $debug)
+    public function run($env, $target, $command)
     {
 
         // Get the phinx console application and inject it into TextWrapper.
-        $app = require __DIR__ . '/phinx.php';
-        $wrap = new Phinx\Wrapper\TextWrapper($app);
+        if (!defined('PHINX_VERSION')) {
+            define('PHINX_VERSION', (0 === strpos('@PHINX_VERSION@', '@PHINX_VERSION')) ? '0.3.6' : '@PHINX_VERSION@');
+        }
+        $files = array(
+          $_SERVER["DOCUMENT_ROOT"] . '/vendor/autoload.php',
+        );
 
         // Mapping of route names to commands.
         $routes = [
@@ -61,12 +65,6 @@ class Web
             'rollback' => 'getRollback',
             ];
 
-        // Extract the requested command from the URL, default to "status".
-        // $command = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
-        if (!$command) {
-            $command = 'status';
-        }
-
         // Verify that the command exists, or list available commands.
         if (!isset($routes[$command])) {
             $commands = implode(', ', array_keys($routes));
@@ -74,25 +72,49 @@ class Web
             die("Command not found! Valid commands are: {$commands}.");
         }
 
-        // Get the environment and target version parameters.
-        $env    = isset($_GET['e']) ? $_GET['e'] : null;
-        $target = isset($_GET['t']) ? $_GET['t'] : null;
+        $args[] = $command;
 
-        // Check if debugging is enabled.
-        $debug  = !empty($_GET['debug']) && filter_var($_GET['debug'], FILTER_VALIDATE_BOOLEAN);
-
-        // Execute the command and determine if it was successful.
-        $output = call_user_func([$wrap, $routes[$command]], $env, $target);
-        $error  = $wrap->getExitCode() > 0;
-
-        // Finally, display the output of the command.
-        header('Content-Type: text/plain', true, $error ? 500 : 200);
-        if ($debug) {
-            // Show what command was executed based on request parameters.
-            $args = implode(', ', [var_export($env, true), var_export($target, true)]);
-            echo "DEBUG: $command($args)" . PHP_EOL . PHP_EOL;
+        if (file_exists($_SERVER["DOCUMENT_ROOT"] . '/phinx.php')) {
+            $environmentsWeb = require $_SERVER["DOCUMENT_ROOT"] . '/phinx.php';
         }
-        // echo $output;
-        return $output;
+
+        if (!empty( $env )) {
+            $environmentsWeb = addslashes($env);
+        } else {
+            $environmentsWeb = (! empty( $environmentsWeb['environments']['default_database'] )) ? $environmentsWeb['environments']['default_database'] : 'development' ;
+        }
+
+        $args['-e'] = $environmentsWeb;
+
+
+        if (!empty($target) && $command = 'rollback') {
+            $args['-t'] = $target;
+        }
+
+        $found = false;
+        foreach ($files as $file) {
+            if (file_exists($file)) {
+                require $file;
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            die(
+              'You need to set up the project dependencies using the following commands:' . PHP_EOL .
+              'curl -s http://getcomposer.org/installer | php' . PHP_EOL .
+              'php composer.phar install' . PHP_EOL
+            );
+        }
+        $app = new \Phinx\Console\PhinxApplication(PHINX_VERSION);
+        // enable running phinx from the web by injecting ArrayInput and StreamOutput
+        // run locally with: php -S localhost:8080 web.php
+        $stream = fopen('php://output', 'w');
+        $output = new \Symfony\Component\Console\Output\StreamOutput($stream);
+
+        // first arg is the command and other args are the options for the command
+        $input = new \Symfony\Component\Console\Input\ArrayInput($args);
+        $respond =  $app->run($input, $output);
+
     }
 }
