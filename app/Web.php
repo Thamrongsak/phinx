@@ -74,8 +74,8 @@ class Web
 
         $args[] = $command;
 
-        if (file_exists($_SERVER["DOCUMENT_ROOT"] . '/phinx.php')) {
-            $environmentsWeb = require $_SERVER["DOCUMENT_ROOT"] . '/phinx.php';
+        if (file_exists($_SERVER["DOCUMENT_ROOT"] . '/admin/phinx.php')) {
+            $environmentsWeb = require $_SERVER["DOCUMENT_ROOT"] . '/admin/phinx.php';
         }
 
         if (!empty( $env )) {
