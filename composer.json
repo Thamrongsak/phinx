@@ -31,7 +31,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Phinx\\": "src/Phinx"
+            "Phinx\\": "src/Phinx",
+            "App\\Phinx\\": "app"
         }
     },
     "autoload-dev": {
