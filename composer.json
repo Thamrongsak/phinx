@@ -40,5 +40,9 @@
             "Test\\Phinx\\": "tests/Phinx"
         }
     },
+    "dist": {
+        "url": "https://github.com/Thamrongsak/phinx/archive/master.zip",
+        "type": "zip"
+    },
     "bin": ["bin/phinx"]
 }
